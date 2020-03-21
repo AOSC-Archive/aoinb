@@ -1,0 +1,14 @@
+Name,Arch,Port,CPU,Memory,Speed,Maintainer,Note
+Ry1800X,amd64,22333,AMD Ryzen 7 1800X @ 3.60 - 4.10GHz,32GiB,73s (-j16),Mingcong Bai,
+EPSON-PC,amd64,22718,Intel Core 2 Duo T8100 @ 2.10GHz,4GiB,588s (-j2),Zamir Sun,"Available time: 8:00 - 21:30 UTC+8, use zsun.dynu.net : 22718 for direct connection."
+Gobson,mips,23072,"Loongson 3B-1500G (R2, Hexa) @ 1.2GHz (A1511)",8GiB,1333s (-j7),Junde Yhi,Hosted by the Network Coding Lab at CUHK(SZ) sponsored by Xiaoxing Ye; owned by Mingcong Bai
+Godson,mips,23141,Loongson 3A-2000C (R2) @ 1GHz (A1601),8GiB,801s (-j5),Junde Yhi,
+Yayloong,mips,23210,Loongson 2F (STLS2F02-1) @ 1GHz (Lemote Yeeloong 8089D),1GiB,9077s (-j1),Junde Yhi,"For testing purposes only, not 24x7 online (slow, hot and noisy); owned by Mingcong Bai"
+ice-pineh64,arm,24064,"Quad Core ARM Cortex-A53 @ 1.488GHz (Allwinner H6, Pine H64 Model B)",3GiB,981s (-j5),Icenowy Zheng,On demand
+Tegra,arm,24096,Quad Core ARM Cortex-A57 @ 1.73GHz (NVIDIA Jetson TX1 Developer Kit),4GiB,446s (-j5),Mingcong Bai,"Device dead, RIP"
+Pine64,arm,24399,"Quad Core ARM Cortex-A53 @ 1.2GHz (Allwinner A64, Pine64 Plus)",2GiB,1351s (-j5),Mingcong Bai,(Down)
+JellyXavier,arm,24444,4 x dual core NVIDIA Carmel CPU clusters @ 2.26GHz (NVIDIA Jetson AGX Xavier Developer Kit),16GiB,227s (-j9),Mingcong Bai,
+YetAnotherPine64,arm,24514,"Quad Core ARM Cortex-A53 @ 1.2GHz (Allwinner A64, Pine64 Plus)",2GiB,1365s (-j5),Salted Fish,(Down) Local mirror located at /dev/sda4
+G5-PPC64BE,powerpc,25120,"IBM PowerPC 970MP @ 2.5GHz (PowerMac G5, Quad, 2005)",8GiB,566s (-j5),Mingcong Bai,
+G5-PPC32BE,powerpc,25121,"IBM PowerPC 970MP @ 2.5GHz (PowerMac G5, Quad, 2005)",16GiB,553s (-j5),Mingcong Bai,
+ice-hfu,riscv,26001,SiFive FU540 @ 1.5GHz (SiFive HiFive Unleashed),8GiB,2000s (-j5),Icenowy Zheng,On demand

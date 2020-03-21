@@ -1,0 +1,87 @@
+digraph {
+    //graph [pad="0.5", nodesep="0.25", ranksep="0.25"];
+    graph [ranksep="0.25", compound=true];
+    edge [fontname="sans"];
+    node [fontname="sans"];
+
+    rebuild[label="Rebuild checker"];
+    update[label="Auto updater"];
+    git_repo[shape=box,label="Git repo"];
+
+    trg_sch[label="Git url\nBase commit+diff\nBuild list", shape="note"];
+    sch_wrk[label="spec/defines", shape="note"];
+    wrk_ls_log[label="Log", shape="note", style="dashed"];
+    wrk_ls_stats[label="Stats", shape="note", style="dashed"];
+    wrk_sch[label="Status", shape="note"];
+    wrk_repo[label=".deb", shape="note"];
+
+    subgraph cluster_trigger {
+        label="Build Trigger"
+        manual[label="Manual"];
+        gitupd[label="Git commit"];
+    };
+
+    git_repo -> gitupd;
+
+    subgraph cluster_scheduler {
+        label="Scheduler"
+        abbs_dep[label="abbs-dep"];
+        scheduler[label="Work scheduler"];
+        ldownloader[label="Downloader\n(local)", style="dashed"];
+
+        abbs_dep -> scheduler;
+        scheduler -> ldownloader;
+    };
+
+    gitupd -> trg_sch [ltail=cluster_trigger, dir="none"];
+    trg_sch -> abbs_dep;
+
+    subgraph cluster_worker {
+        label="Worker";
+        downloader[label="Downloader"];
+        ciel[label="ciel"];
+        acbs[label="acbs (new)\nsystemd-run\nautobuild3\nTest runner"];
+
+        downloader -> ciel;
+        ciel -> acbs;
+    };
+
+    ldownloader -> sch_wrk[dir="none"];
+    sch_wrk -> downloader;
+    acbs -> wrk_sch[dir="none"];
+    acbs -> wrk_ls_log[dir="none", style="dashed"];
+    acbs -> wrk_ls_stats[dir="none", style="dashed"];
+    wrk_sch -> scheduler;
+
+    subgraph cluster_stats {
+        label="Log & Stats"
+        fs[label="Filesystem", shape="box"];
+        db[label="Database", shape="box"];
+        dashboard[label="Dashboard"];
+
+        fs -> dashboard;
+        db -> dashboard;
+    };
+
+    wrk_ls_log -> fs[style="dashed"];
+    wrk_ls_stats -> db[style="dashed"];
+    db -> scheduler[style="dashed"];
+
+    subgraph cluster_repo {
+        label="Repo manager"
+        p_vector[label="p-vector"];
+        metadata[label="Metadata Database\nRelationship QA", shape="box"];
+        dpkg_repo[label="dpkg repo\n(source/local)", shape="box"];
+
+        dpkg_repo -> p_vector;
+        p_vector -> metadata;
+    };
+
+    acbs -> wrk_repo[dir="none"];
+    wrk_repo -> dpkg_repo;
+    dpkg_repo -> acbs
+    metadata -> rebuild;
+    rebuild -> git_repo;
+    update -> git_repo;
+    //rankdir=LR;
+}

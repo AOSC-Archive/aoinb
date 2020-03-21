@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+builddir/
+
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
