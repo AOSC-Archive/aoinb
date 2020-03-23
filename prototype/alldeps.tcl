@@ -24,15 +24,17 @@ proc find_deps {db root name path} {
         foreach pkg $path {
             db eval {
                 INSERT OR IGNORE INTO package_deps_all
-                SELECT $root, dependency FROM package_deps_all
+                SELECT $pkg, dependency FROM package_deps_all
                 WHERE package=$name
             }
         }
         return
     }
     set dependencies [db eval {
-        SELECT DISTINCT pd.dependency
+        SELECT DISTINCT coalesce(pr.package, pd.dependency) dependency
         FROM package_dependencies pd
+        LEFT JOIN package_dependencies pr
+        ON pr.dependency=pd.dependency AND pr.relationship='PKGPROV'
         WHERE pd.package=$name AND pd.architecture=''
         AND pd.relationship IN ('PKGDEP', 'BUILDDEP')
     }]
