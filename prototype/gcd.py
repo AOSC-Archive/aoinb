@@ -174,7 +174,7 @@ model += obj
 print('Solving...')
 
 model.writeLP('gcd.lp')
-model.solve(GLPK('/home/gumble/software/glpk-4.63/examples/glpsol', options=['--cuts']))
+model.solve(GLPK('glpsol', options=['--cuts']))
 
 obj_value = pulp.value(model.objective)
 print('Obj: %s' % obj_value)
