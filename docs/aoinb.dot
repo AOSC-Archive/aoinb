@@ -1,4 +1,6 @@
 digraph {
+    labelloc="t";
+    label="AOINB Structure";
     //graph [pad="0.5", nodesep="0.25", ranksep="0.25"];
     graph [ranksep="0.25", compound=true];
     edge [fontname="sans"];
@@ -9,7 +11,7 @@ digraph {
     git_repo[shape=box,label="Git repo"];
 
     trg_sch[label="Git url\nBase commit+diff\nBuild list", shape="note"];
-    sch_wrk[label="spec/defines", shape="note"];
+    sch_wrk[label="spec/defines\nsources.list", shape="note"];
     wrk_ls_log[label="Log", shape="note", style="dashed"];
     wrk_ls_stats[label="Stats", shape="note", style="dashed"];
     wrk_sch[label="Status", shape="note"];
@@ -17,7 +19,7 @@ digraph {
 
     subgraph cluster_trigger {
         label="Build Trigger"
-        manual[label="Manual"];
+        manual[label="aoinb\ncli tool"];
         gitupd[label="Git commit"];
     };
 
@@ -37,13 +39,16 @@ digraph {
     trg_sch -> abbs_dep;
 
     subgraph cluster_worker {
-        label="Worker";
+        label="Builder";
         downloader[label="Downloader"];
-        ciel[label="ciel"];
-        acbs[label="acbs (new)\nsystemd-run\nautobuild3\nTest runner"];
+        buildah[label="buildah"];
+        acbs[label="acbs (new)\nsystemd-run\nautobuild3"];
+        abtest[label="Test runner"];
 
-        downloader -> ciel;
-        ciel -> acbs;
+        downloader -> buildah;
+        buildah -> acbs;
+        buildah -> abtest;
+        acbs -> abtest;
     };
 
     ldownloader -> sch_wrk[dir="none"];
@@ -77,7 +82,7 @@ digraph {
         p_vector -> metadata;
     };
 
-    acbs -> wrk_repo[dir="none"];
+    acbs:w -> wrk_repo[dir="none"];
     wrk_repo -> dpkg_repo;
     dpkg_repo -> acbs
     metadata -> rebuild;
