@@ -1,8 +1,13 @@
 import os
+import sys
+import urllib.request
+import tarfile
+import subprocess
+import shutil
 from enum import Enum
 
 
-class Container:
+class Container(object):
     buildkit_path = "null" # Must be set before creating any containers!
     up_containers_counter = 0
 
@@ -24,8 +29,13 @@ class Container:
         cls.up_containers_counter -= 1
 
     @classmethod
-    def update_buildkit(cls):
-        pass
+    def install_buildkit(cls, mirror_base_url, arch):
+        buildkit_url = mirror_base_url + "/aosc-os/os-" + arch + "/buildkit/aosc-os_buildkit_latest_amd64.tar.xz"
+        tar_xz_path = cls.buildkit_path + "/buildkit_" + arch + ".tar.xz"
+        urllib.request.urlretrieve(buildkit_url, tar_xz_path)
+        # Now extract it
+        tar = tarfile.open(tar_xz_path, "r:xz")
+        tar.extractall(path=cls.buildkit_path, numeric_owner=True)
 
     @staticmethod
     def mount_overlay(lower, upper, work, destination):
@@ -44,6 +54,8 @@ class Container:
     def __init__(self, name, base_dir):
         self.base_dir = base_dir
         self.instance_name = name
+        # Prepare output dir
+        self.output_dir = base_dir + "/" + "output" + "/" + name
         # Prepare exposed dir locations
         self.workspace_dir = base_dir + "/" + self.instance_name
         # Prepare hidden dir locations
@@ -55,18 +67,32 @@ class Container:
         self.workspace_workdir = hidden_dir + "workspace-workdir"
 
         # And create them
-        dirs = [self.base_dir, self.workspace_dir, self.instance_dir, self.instance_overlay, self.instance_workdir,
-                self.workspace_overlay, self.workspace_workdir]
+        dirs = [self.base_dir, self.output_dir, self.workspace_dir, self.instance_dir, self.instance_overlay,
+                self.instance_workdir, self.workspace_overlay, self.workspace_workdir]
         for d in dirs:
-            os.makedirs(d)
+            if not os.path.exists(d):
+                os.makedirs(d)
 
         # Set the state eventually
         self.state = Container.Status.DOWN
 
+    # dir should be the path inside the container
+    def workspace_mkdir(self, dir):
+        os.makedirs(self.workspace_overlay + dir)
+
+    # destination_path should be the path inside the container
+    def copy_to_workspace(self, source_path, destination_path):
+        shutil.copy2(source_path, self.workspace_overlay + destination_path)
+
+    # destination_path should be the path inside the container
+    def copy_dir_to_workspace(self, source_path, destination_path):
+        shutil.copytree(source_path, self.workspace_overlay + destination_path,
+                        symlinks=True)
+
     def workspace_up(self):
         if self.state == Container.Status.DOWN:
             Container.mount_overlay(self.buildkit_path, self.instance_overlay, self.instance_workdir, self.instance_dir)
-            Container.mount_overlay(self.instance_dir, self.workspace_workdir, self.workspace_workdir, self.workspace_dir)
+            Container.mount_overlay(self.instance_dir, self.workspace_overlay, self.workspace_workdir, self.workspace_dir)
             self.state = Container.Status.WORKSPACE_UP
             self.__class__.increase_up_container()
         else:
@@ -80,6 +106,29 @@ class Container:
             self.__class__.decrease_up_container()
         else:
             raise RuntimeError("Cannot bring down workspace while container is not up or in other status.")
+
+    def workspace_run(self, command):
+        if self.state == Container.Status.WORKSPACE_UP:
+            cmd = ['systemd-nspawn', '-D', self.workspace_dir, command]
+            # TODO: Implement logging to file
+            process = subprocess.Popen(cmd, bufsize=1, universal_newlines=True, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT)
+            for line in process.stdout:
+                print(line, end='')
+            process.wait()
+            errcode = process.returncode
+            if errcode != 0:
+                print("Process exit with code " + str(errcode))
+        else:
+            print("Workspace is not on!")
+
+    def workspace_cleanup(self):
+        if self.state == Container.Status.DOWN:
+            shutil.rmtree(self.workspace_workdir)
+            # Create it again :)
+            os.makedirs(self.workspace_overlay)
+        else:
+            raise RuntimeError("Cannot cleanup workspace: containter still up.")
 
     def instance_up(self):
         if self.state == Container.Status.DOWN:
