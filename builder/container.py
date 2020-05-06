@@ -1,6 +1,4 @@
 import os
-import sys
-import urllib.request
 import tarfile
 import subprocess
 import shutil
@@ -29,11 +27,7 @@ class Container(object):
         cls.up_containers_counter -= 1
 
     @classmethod
-    def install_buildkit(cls, mirror_base_url, arch):
-        buildkit_url = mirror_base_url + "/aosc-os/os-" + arch + "/buildkit/aosc-os_buildkit_latest_amd64.tar.xz"
-        tar_xz_path = cls.buildkit_path + "/buildkit_" + arch + ".tar.xz"
-        urllib.request.urlretrieve(buildkit_url, tar_xz_path)
-        # Now extract it
+    def install_buildkit(cls, tar_xz_path):
         tar = tarfile.open(tar_xz_path, "r:xz")
         tar.extractall(path=cls.buildkit_path, numeric_owner=True)
 
@@ -130,6 +124,19 @@ class Container(object):
         else:
             raise RuntimeError("Cannot cleanup workspace: containter still up.")
 
+    # dir should be the path inside the instance container
+    def instance_mkdir(self, dir):
+        os.makedirs(self.instance_overlay + dir)
+
+    # destination_path should be the path inside the instance container
+    def copy_to_instance(self, source_path, destination_path):
+        shutil.copy2(source_path, self.instance_overlay + destination_path)
+
+    # destination_path should be the path inside the instance container
+    def copy_dir_to_instance(self, source_path, destination_path):
+        shutil.copytree(source_path, self.instance_overlay + destination_path,
+                        symlinks=True)
+
     def instance_up(self):
         if self.state == Container.Status.DOWN:
             Container.mount_overlay(self.buildkit_path, self.instance_overlay, self.instance_workdir, self.instance_dir)
@@ -145,6 +152,21 @@ class Container(object):
             self.__class__.decrease_up_container()
         else:
             raise RuntimeError("Cannot bring down instance while container is not up or in other status.")
+
+    def instance_run(self, command):
+        if self.state == Container.Status.INSTANCE_UP:
+            cmd_list = ['systemd-nspawn', '-D', self.instance_dir] + command.split()
+            # TODO: Implement logging to file
+            process = subprocess.Popen(cmd_list, bufsize=1, universal_newlines=True, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT)
+            for line in process.stdout:
+                print(line, end='')
+            process.wait()
+            errcode = process.returncode
+            if errcode != 0:
+                print("Process exit with code " + str(errcode))
+        else:
+            print("Instance is not on!")
 
     def __del__(self):
         if self.state == Container.Status.INSTANCE_UP:
