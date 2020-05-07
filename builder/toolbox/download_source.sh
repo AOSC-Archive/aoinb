@@ -5,8 +5,6 @@ _help_message() {
 Useage
 
 	download_source SPEC_FILE
-
-	Only supports SRCTBL and CHKSUM for now.
 "
 }
 
@@ -40,10 +38,10 @@ if [ -n "$SRCTBL" ] && [ -n "$CHKSUM" ]; then
 	chksum_type=${arr[0]}
 	chksum_digit=${arr[1]}
 
-	tclsh toolbox/downloader.tcl $VER.bin SRCTBL $SRCTBL ${SPLIT[0]} ${SPLIT[1]}
+	downloader.tcl $VER.bin SRCTBL $SRCTBL ${SPLIT[0]} ${SPLIT[1]}
 
 	if [[ $? -eq 0 ]]; then
-		dinfo "Download success."
+		dinfo "SRCTBL Download success."
 		mkdir build
 		tar xf $VER.bin -C build
 		if [[ -n $SUBDIR ]] && [[ -d $SUBDIR ]]; then
@@ -54,13 +52,34 @@ if [ -n "$SRCTBL" ] && [ -n "$CHKSUM" ]; then
 			mv build/$(ls build | head -n 1)/* build/
 		fi
 	else
-		dinfo "Download failed!"
+		dinfo "SRCTBL Download failed!"
 		exit 1
 	fi
 elif [ -n "$GITSRC" ] && [ -n "$GITCO" ]; then
-	echo
+	downloader.tcl build GITSRC $GITSRC '' $GITCO
+	if [[ $? -eq 0 ]]; then
+		dinfo "GITSRC download success."
+	else
+		dinfo "GITSRC download failed!"
+		exit 1
+	fi
+elif [ -n "$SVNSRC" ] && [ -n "$SVNCO" ]; then
+	downloader.tcl build SVNSRC $SVNSRC '' $SVNCO
+	if [[ $? -eq 0 ]]; then
+		dinfo "SVNSRC download success."
+	else
+		dinfo "SVNSRC download failed!"
+		exit 1
+	fi
+elif [ -n "$HGSRC" ] && [ -n "$HGCO" ]; then
+	downloader.tcl build HGSRC $HGSRC '' $HGCO
+	if [[ $? -eq 0 ]]; then
+		dinfo "HGSRC download success."
+	else
+		dinfo "HGSRC download failed!"
+		exit 1
+	fi
 else
 	dinfo "Not found."
-	dinfo "Notice that this script only supports SRCTBL and CHKSUM for now."
 	exit 1
 fi
