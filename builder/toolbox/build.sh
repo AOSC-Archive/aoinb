@@ -39,4 +39,4 @@ echo PKGREL=$REL >> build/autobuild/defines
 cd build
 
 binfo "Initializing build."
-procmon.py autobuild
+autobuild
