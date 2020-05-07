@@ -8,10 +8,11 @@ echo -e "${bold}[build.sh]${normal} $*"
 
 binfo "Begin build"
 binfo "This software is in WIP status. Don't rely on it."
+export PATH=/buildroot/toolbox:$PATH
 cd /buildroot
 
 binfo "Fetching source code"
-bash toolbox/download_source.sh bundle/spec
+bash download_source.sh bundle/spec
 
 if [[ $? -ne 0 ]]; then
 	binfo "Souce downloading failed! Exiting."
@@ -38,4 +39,4 @@ echo PKGREL=$REL >> build/autobuild/defines
 cd build
 
 binfo "Initializing build."
-autobuild
+procmon.py autobuild
