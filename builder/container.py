@@ -6,7 +6,7 @@ from enum import Enum
 
 
 class Container(object):
-    buildkit_path = "null" # Must be set before creating any containers!
+    baseos_path = "null" # Must be set before creating any containers!
     up_containers_counter = 0
 
     class Status(Enum):
@@ -15,8 +15,8 @@ class Container(object):
         WORKSPACE_UP = 2
 
     @classmethod
-    def set_buildkit_path(cls, path):
-        cls.buildkit_path = path
+    def set_baseos_path(cls, path):
+        cls.baseos_path = path
 
     @classmethod
     def increase_up_container(cls):
@@ -27,9 +27,19 @@ class Container(object):
         cls.up_containers_counter -= 1
 
     @classmethod
-    def install_buildkit(cls, tar_xz_path):
-        tar = tarfile.open(tar_xz_path, "r:xz")
-        tar.extractall(path=cls.buildkit_path, numeric_owner=True)
+    def install_baseos(cls, tar_xz_path):
+        if cls.baseos_path != 'null':
+            tar = tarfile.open(tar_xz_path, "r:xz")
+            tar.extractall(path=cls.baseos_path, numeric_owner=True)
+        else:
+            raise RuntimeError('Base OS path not set!')
+
+    @classmethod
+    def baseos_run(cls, command):
+        if cls.baseos_path != 'null':
+            cls.nspawn_run(cls.baseos_path, command)
+        else:
+            raise RuntimeError('Base OS path not set!')
 
     @staticmethod
     def mount_overlay(lower, upper, work, destination):
@@ -44,6 +54,19 @@ class Container(object):
         res = os.system(command)
         if res != 0:
             raise OSError("Failed to umount OverlayF")
+
+    @staticmethod
+    def nspawn_run(dir, command):
+        cmd = ['systemd-nspawn', '-D', dir] + command.split()
+        # TODO: Implement logging to file
+        process = subprocess.Popen(cmd, bufsize=1, universal_newlines=True, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        for line in process.stdout:
+            print(line, end='')
+        process.wait()
+        errcode = process.returncode
+        if errcode != 0:
+            print("Process exit with code " + str(errcode))
 
     def __init__(self, name, base_dir):
         self.base_dir = base_dir
@@ -85,7 +108,7 @@ class Container(object):
 
     def workspace_up(self):
         if self.state == Container.Status.DOWN:
-            Container.mount_overlay(self.buildkit_path, self.instance_overlay, self.instance_workdir, self.instance_dir)
+            Container.mount_overlay(self.baseos_path, self.instance_overlay, self.instance_workdir, self.instance_dir)
             Container.mount_overlay(self.instance_dir, self.workspace_overlay, self.workspace_workdir, self.workspace_dir)
             self.state = Container.Status.WORKSPACE_UP
             self.__class__.increase_up_container()
@@ -103,16 +126,7 @@ class Container(object):
 
     def workspace_run(self, command):
         if self.state == Container.Status.WORKSPACE_UP:
-            cmd = ['systemd-nspawn', '-D', self.workspace_dir, command]
-            # TODO: Implement logging to file
-            process = subprocess.Popen(cmd, bufsize=1, universal_newlines=True, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT)
-            for line in process.stdout:
-                print(line, end='')
-            process.wait()
-            errcode = process.returncode
-            if errcode != 0:
-                print("Process exit with code " + str(errcode))
+            self.nspawn_run(self.workspace_dir, command)
         else:
             print("Workspace is not on!")
 
@@ -139,7 +153,7 @@ class Container(object):
 
     def instance_up(self):
         if self.state == Container.Status.DOWN:
-            Container.mount_overlay(self.buildkit_path, self.instance_overlay, self.instance_workdir, self.instance_dir)
+            Container.mount_overlay(self.baseos_path, self.instance_overlay, self.instance_workdir, self.instance_dir)
             self.state = Container.Status.INSTANCE_UP
             self.__class__.increase_up_container()
         else:
@@ -155,16 +169,7 @@ class Container(object):
 
     def instance_run(self, command):
         if self.state == Container.Status.INSTANCE_UP:
-            cmd_list = ['systemd-nspawn', '-D', self.instance_dir] + command.split()
-            # TODO: Implement logging to file
-            process = subprocess.Popen(cmd_list, bufsize=1, universal_newlines=True, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT)
-            for line in process.stdout:
-                print(line, end='')
-            process.wait()
-            errcode = process.returncode
-            if errcode != 0:
-                print("Process exit with code " + str(errcode))
+            self.nspawn_run(self.instance_dir, command)
         else:
             print("Instance is not on!")
 
