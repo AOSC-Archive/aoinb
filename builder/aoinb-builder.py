@@ -143,10 +143,10 @@ if __name__ == '__main__':
         print('Work directory does not exists, creating...')
         os.makedirs(config['workDir'])
 
-    args.func(args)
-    try:
-        pass
-    except AttributeError as e:
+    if len(args.__dict__) <= 1:
         print('Too few arguments.')
         parser.print_help()
         parser.exit()
+    else:
+        args.func(args)
+
