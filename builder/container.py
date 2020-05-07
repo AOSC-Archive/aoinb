@@ -35,9 +35,9 @@ class Container(object):
             raise RuntimeError('Base OS path not set!')
 
     @classmethod
-    def baseos_run(cls, command):
+    def baseos_run(cls, command, env):
         if cls.baseos_path != 'null':
-            cls.nspawn_run(cls.baseos_path, command)
+            cls.nspawn_run(cls.baseos_path, command, env)
         else:
             raise RuntimeError('Base OS path not set!')
 
@@ -56,8 +56,14 @@ class Container(object):
             raise OSError("Failed to umount OverlayF")
 
     @staticmethod
-    def nspawn_run(dir, command):
-        cmd = ['systemd-nspawn', '-D', dir] + command.split()
+    def nspawn_run(dir, command, env):
+        cmd = ['systemd-nspawn']
+        for e in env:
+            cmd += ['-E'] + env
+
+        cmd += ['-D', dir] + command.split()
+
+        print(cmd)
         # TODO: Implement logging to file
         process = subprocess.Popen(cmd, bufsize=1, universal_newlines=True, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
@@ -124,15 +130,15 @@ class Container(object):
         else:
             raise RuntimeError("Cannot bring down workspace while container is not up or in other status.")
 
-    def workspace_run(self, command):
+    def workspace_run(self, command, env):
         if self.state == Container.Status.WORKSPACE_UP:
-            self.nspawn_run(self.workspace_dir, command)
+            self.nspawn_run(self.workspace_dir, command, env)
         else:
             print("Workspace is not on!")
 
     def workspace_cleanup(self):
         if self.state == Container.Status.DOWN:
-            shutil.rmtree(self.workspace_workdir)
+            shutil.rmtree(self.workspace_overlay)
             # Create it again :)
             os.makedirs(self.workspace_overlay)
         else:
@@ -140,7 +146,9 @@ class Container(object):
 
     # dir should be the path inside the instance container
     def instance_mkdir(self, dir):
-        os.makedirs(self.instance_overlay + dir)
+        d = self.instance_overlay + dir
+        if not os.path.exists(d):
+            os.makedirs(self.instance_overlay + dir)
 
     # destination_path should be the path inside the instance container
     def copy_to_instance(self, source_path, destination_path):
@@ -167,9 +175,9 @@ class Container(object):
         else:
             raise RuntimeError("Cannot bring down instance while container is not up or in other status.")
 
-    def instance_run(self, command):
+    def instance_run(self, command, env):
         if self.state == Container.Status.INSTANCE_UP:
-            self.nspawn_run(self.instance_dir, command)
+            self.nspawn_run(self.instance_dir, command, env)
         else:
             print("Instance is not on!")
 

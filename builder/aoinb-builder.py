@@ -24,14 +24,15 @@ def build(args):
         if not os.path.exists(source_list_path):
             raise IOError('Corresponding source list not found!')
         else:
-            c.instance_mkdir('/etc/apt/')
+            if not os.path.exists(c.instance_dir + '/etc/apt'):
+                c.instance_mkdir('/etc/apt/')
             c.copy_to_instance(source_list_path, '/etc/apt/sources.list')
 
     # First do an instance update before build
     c.instance_up()
-    c.instance_run('apt update')
-    c.instance_run('apt full-upgrade')
-    c.instance_run('apt clean')
+    c.instance_run('apt-get update -q', [])
+    c.instance_run('apt-get dist-upgrade -y -q', [])
+    c.instance_run('apt-get clean -y', [])
     c.instance_down()
 
     # Prepare build env
@@ -41,7 +42,7 @@ def build(args):
     c.copy_dir_to_workspace(os.path.abspath('./toolbox'), '/buildroot/toolbox')
     # Run the build script
     c.workspace_up()
-    c.workspace_run('/buildroot/toolbox/build.sh')
+    c.workspace_run('/buildroot/toolbox/build.sh', [])
     c.workspace_down()
     c.workspace_cleanup()
 
@@ -52,9 +53,10 @@ def update_baseos(args):
     if not os.path.exists(baseos_dir):
         raise IOError("BuildKit does not exists, cannot proceed.")
     Container.set_baseos_path(baseos_dir)
-    Container.baseos_run('apt update')
-    Container.baseos_run('apt upgrade')
-    Container.baseos_run('apt clean')
+
+    Container.baseos_run('apt-get update --quiet', ['DEBIAN_FRONTEND=noninteractive'])
+    Container.baseos_run('apt-get upgrade -y --quiet', ['DEBIAN_FRONTEND=noninteractive'])
+    Container.baseos_run('apt-get clean -y --quiet', ['DEBIAN_FRONTEND=noninteractive'])
 
 
 def load_baseos(args):
@@ -95,9 +97,10 @@ def cleanup(args):
         except FileNotFoundError:
             print('Base OS directory already deleted or DNE. Doing nothing.')
     else:
-        print('Trying to delete instance ' + args.target)
+        print('Trying to delete instance ' + args.target + '...')
         try:
             shutil.rmtree(config['workDir'] + '/.builder/' + args.target)
+            print('Done.')
         except FileNotFoundError:
             print('Instance not found, doing nothing.')
 
