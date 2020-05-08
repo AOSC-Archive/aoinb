@@ -7,15 +7,17 @@ from container import Container
 
 
 def build(args):
+    import resource
+
     if not os.path.exists(args.package):
         raise IOError('Failed to read package bundle: folder does not exists.')
 
-    baseos_dir = config["workDir"] + "/.builder/baseos/"
+    baseos_dir = config["work_dir"] + "/.builder/baseos/"
     if not os.path.exists(baseos_dir):
         raise IOError("BuildKit does not exists, cannot proceed.")
 
     Container.set_baseos_path(baseos_dir)
-    c = Container(args.branch, config['workDir'])
+    c = Container(args.branch, config['work_dir'])
 
     # Prepare instance for first time use
     if not os.path.exists(c.instance_overlay + '/etc/apt/source.list'):
@@ -44,12 +46,22 @@ def build(args):
     c.workspace_up()
     c.workspace_run('/buildroot/toolbox/build.sh', [])
     c.workspace_down()
+    # Print usage info
+    print(resource.getrusage(resource.RUSAGE_CHILDREN))
+    # Copy result to result folder
+    output_path = config['work_dir'] + '/output/' + args.branch
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    for f in os.listdir(c.workspace_overlay + '/buildroot/output'):
+        print(output_path)
+        shutil.copy(c.workspace_overlay + '/buildroot/output/' + f, output_path)
+
     c.workspace_cleanup()
 
 
 def update_baseos(args):
     print('Updating base OS...')
-    baseos_dir = config["workDir"] + "/.builder/baseos/"
+    baseos_dir = config["work_dir"] + "/.builder/baseos/"
     if not os.path.exists(baseos_dir):
         raise IOError("BuildKit does not exists, cannot proceed.")
     Container.set_baseos_path(baseos_dir)
@@ -60,7 +72,7 @@ def update_baseos(args):
 
 
 def load_baseos(args):
-    baseos_dir = config["workDir"] + "/.builder/baseos/"
+    baseos_dir = config["work_dir"] + "/.builder/baseos/"
     Container.set_baseos_path(baseos_dir)
 
     # Remove the old baseos
@@ -68,7 +80,7 @@ def load_baseos(args):
         shutil.rmtree(baseos_dir)
 
     arch = str(config['arch'])
-    tar_xz_path = config['workDir'] + "/buildkit_" + arch + ".tar.xz"
+    tar_xz_path = config['work_dir'] + "/buildkit_" + arch + ".tar.xz"
     if not os.path.exists(tar_xz_path):
         import urllib.request
         print("Downloading BuildKit from repo.aosc.io...")
@@ -85,21 +97,21 @@ def cleanup(args):
     if args.target == 'all':
         print('Deleting everything in the work directory...')
         try:
-            shutil.rmtree(config["workDir"] + "/.builder")
+            shutil.rmtree(config["work_dir"] + "/.builder")
             print('Done.')
         except FileNotFoundError:
             print('Work directory already deleted or DNE. Doing nothing.')
     elif args.target == 'baseos':
         print('Deleting base OS...')
         try:
-            base_os_path = config['workDir'] + '/.builder/baseos'
+            base_os_path = config['work_dir'] + '/.builder/baseos'
             shutil.rmtree(base_os_path)
         except FileNotFoundError:
             print('Base OS directory already deleted or DNE. Doing nothing.')
     else:
         print('Trying to delete instance ' + args.target + '...')
         try:
-            shutil.rmtree(config['workDir'] + '/.builder/' + args.target)
+            shutil.rmtree(config['work_dir'] + '/.builder/' + args.target)
             print('Done.')
         except FileNotFoundError:
             print('Instance not found, doing nothing.')
@@ -139,9 +151,9 @@ if __name__ == '__main__':
         config = tomlkit.parse(f.read())
 
     # Prepare workdir
-    if not os.path.exists(config['workDir']):
+    if not os.path.exists(config['work_dir']):
         print('Work directory does not exists, creating...')
-        os.makedirs(config['workDir'])
+        os.makedirs(config['work_dir'])
 
     if len(args.__dict__) <= 1:
         print('Too few arguments.')

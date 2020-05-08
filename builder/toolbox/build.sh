@@ -40,3 +40,13 @@ cd build
 
 binfo "Initializing build."
 autobuild
+
+if [[ $? -eq 0 ]]; then
+	binfo "Build successful. Copying result to result folder."
+	cd ..
+	mkdir output
+	cp build/*.deb output/
+else
+	binfo "Build failed!"
+	exit 1
+fi

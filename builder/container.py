@@ -63,7 +63,6 @@ class Container(object):
 
         cmd += ['-D', dir] + command.split()
 
-        print(cmd)
         # TODO: Implement logging to file
         process = subprocess.Popen(cmd, bufsize=1, universal_newlines=True, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
@@ -107,9 +106,18 @@ class Container(object):
     def copy_to_workspace(self, source_path, destination_path):
         shutil.copy2(source_path, self.workspace_overlay + destination_path)
 
+    # source_path should be the path inside the container
+    def copy_from_workspace(self, source_path, destination_path):
+        shutil.copy2(self.workspace_overlay + source_path, destination_path)
+
     # destination_path should be the path inside the container
     def copy_dir_to_workspace(self, source_path, destination_path):
         shutil.copytree(source_path, self.workspace_overlay + destination_path,
+                        symlinks=True)
+
+    # source_path should be the path inside the container
+    def copy_dir_from_workspace(self, source_path, destination_path):
+        shutil.copytree(self.workspace_overlay + source_path, destination_path,
                         symlinks=True)
 
     def workspace_up(self):
