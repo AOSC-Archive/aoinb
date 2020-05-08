@@ -100,13 +100,14 @@ class ManagedProcess:
         with open(self.logfile, 'wb') as f:
             while self.poll() is None:
                 try:
-                    line = self.proc.stdout.readline()
+                    line = self.proc.stdout.readline(1024)
                     if line:
                         sys.stdout.buffer.write(line)
                         f.write(line)
                     else:
                         break
                     sys.stdout.buffer.flush()
+                    f.flush()
                 except KeyboardInterrupt:
                     self.kill()
         self.poll()
