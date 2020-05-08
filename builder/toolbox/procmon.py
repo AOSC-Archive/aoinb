@@ -29,7 +29,6 @@ def get_process_stats(proc):
     try:
         with proc.oneshot():
             cpu_times = proc.cpu_times()
-            print(cpu_times)
             mem_info = proc.memory_full_info()
         return ProcessStats(
             mem_info.uss,
