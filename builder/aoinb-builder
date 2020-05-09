@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+
+import os
+import tomlkit
+from components import builder
+
+
+def build(arguments, config):
+    builder.build(config['work_dir'], arguments.config_path, arguments.package, arguments.branch)
+
+
+def update_baseos(arguments, config):
+    builder.update_baseos(config['work_dir'])
+
+
+def load_baseos(arguments, config):
+    builder.load_baseos(config['work_dir'], config['arch'])
+
+
+def cleanup(arguments, config):
+    builder.cleanup(config['work_dir'], args.target)
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='The builder component for AOINB.')
+    parser.add_argument('-c','--config_path', help='Where aoinb-builder configuration files are located.',
+                        type=str, default='/var/cache/aoinb/conf')
+
+    subparser = parser.add_subparsers()
+    parser_build = subparser.add_parser('build', help='Build a package.')
+    parser_build.add_argument('package', help='Where spec and autobuild/* are located.', type=str)
+    parser_build.add_argument('branch', help='Which branch to use. (stable, for example)', type=str)
+    parser_build.set_defaults(func=build)
+
+    parser_update_baseos = subparser.add_parser('update-baseos', help='Update base OS or instance.')
+    parser_update_baseos.set_defaults(func=update_baseos)
+
+    parser_load_baseos = subparser.add_parser('load-baseos',
+                                                help='Load base OS into build environment. '
+                                                     'Note: this operation will remove the old BuildKit installation.')
+    parser_load_baseos.set_defaults(func=load_baseos)
+
+    parser_cleanup = subparser.add_parser('cleanup', help='Something feels wrong? Start everything all over again.')
+    parser_cleanup.add_argument('target', help='To clean up specific instance, base os, or everything?')
+    parser_cleanup.set_defaults(func=cleanup)
+
+    args = parser.parse_args()
+
+    if not os.path.exists(os.path.abspath(args.config_path)):
+        raise IOError('Failed to read config: folder ' + os.path.abspath(args.config_path) + ' does not exists')
+
+    with open(args.config_path + '/config.toml', 'r') as f:
+        parsed_config = tomlkit.parse(f.read())
+
+    # Prepare workdir
+    if not os.path.exists(parsed_config['work_dir']):
+        print('Work directory does not exists, creating...')
+        os.makedirs(parsed_config['work_dir'])
+
+    if len(args.__dict__) <= 1:
+        print('Too few arguments.')
+        parser.print_help()
+        parser.exit()
+    else:
+        args.func(args, parsed_config)
+

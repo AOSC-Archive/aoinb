@@ -1,28 +1,25 @@
-#!/usr/bin/env python3
-
 import os
-import tomlkit
 import shutil
-from container import Container
+from components.container import Container
 
 
-def build(args):
+def build(work_dir, config_path, package_path, branch):
     import resource
 
-    if not os.path.exists(args.package):
+    if not os.path.exists(package_path):
         raise IOError('Failed to read package bundle: folder does not exists.')
 
-    baseos_dir = config["work_dir"] + "/.builder/baseos/"
+    baseos_dir = work_dir + "/.builder/baseos/"
     if not os.path.exists(baseos_dir):
         raise IOError("BuildKit does not exists, cannot proceed.")
 
     Container.set_baseos_path(baseos_dir)
-    c = Container(args.branch, config['work_dir'])
+    c = Container(branch, work_dir)
 
     # Prepare instance for first time use
     if not os.path.exists(c.instance_overlay + '/etc/apt/source.list'):
         print('source.list not found in instance. Copying from config path.')
-        source_list_path = args.config_path + '/source_lists/' + args.branch + '.list'
+        source_list_path = config_path + '/source_lists/' + branch + '.list'
         if not os.path.exists(source_list_path):
             raise IOError('Corresponding source list not found!')
         else:
@@ -39,9 +36,9 @@ def build(args):
 
     # Prepare build env
     c.workspace_mkdir('/buildroot')
-    c.copy_dir_to_workspace(os.path.abspath(args.package), '/buildroot/bundle')
+    c.copy_dir_to_workspace(os.path.abspath(package_path), '/buildroot/bundle')
     # Copy toolbox
-    c.copy_dir_to_workspace(os.path.abspath('./toolbox'), '/buildroot/toolbox')
+    c.copy_dir_to_workspace(os.path.abspath('../toolbox'), '/buildroot/toolbox')
     # Run the build script
     c.workspace_up()
     c.workspace_run('/buildroot/toolbox/build.sh', [])
@@ -49,7 +46,7 @@ def build(args):
     # Print usage info
     print(resource.getrusage(resource.RUSAGE_CHILDREN))
     # Copy result to result folder
-    output_path = config['work_dir'] + '/output/' + args.branch
+    output_path = work_dir + '/output/' + branch
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     for f in os.listdir(c.workspace_overlay + '/buildroot/output'):
@@ -59,9 +56,9 @@ def build(args):
     c.workspace_cleanup()
 
 
-def update_baseos(args):
+def update_baseos(work_dir):
     print('Updating base OS...')
-    baseos_dir = config["work_dir"] + "/.builder/baseos/"
+    baseos_dir = work_dir + "/.builder/baseos/"
     if not os.path.exists(baseos_dir):
         raise IOError("BuildKit does not exists, cannot proceed.")
     Container.set_baseos_path(baseos_dir)
@@ -71,16 +68,15 @@ def update_baseos(args):
     Container.baseos_run('apt-get clean -y --quiet', ['DEBIAN_FRONTEND=noninteractive'])
 
 
-def load_baseos(args):
-    baseos_dir = config["work_dir"] + "/.builder/baseos/"
+def load_baseos(work_dir, arch):
+    baseos_dir = work_dir + "/.builder/baseos/"
     Container.set_baseos_path(baseos_dir)
 
     # Remove the old baseos
     if os.path.exists(baseos_dir):
         shutil.rmtree(baseos_dir)
 
-    arch = str(config['arch'])
-    tar_xz_path = config['work_dir'] + "/buildkit_" + arch + ".tar.xz"
+    tar_xz_path = work_dir + "/buildkit_" + arch + ".tar.xz"
     if not os.path.exists(tar_xz_path):
         import urllib.request
         print("Downloading BuildKit from repo.aosc.io...")
@@ -93,72 +89,25 @@ def load_baseos(args):
     Container.install_baseos(tar_xz_path)
 
 
-def cleanup(args):
-    if args.target == 'all':
+def cleanup(work_dir, target):
+    if target == 'all':
         print('Deleting everything in the work directory...')
         try:
-            shutil.rmtree(config["work_dir"] + "/.builder")
+            shutil.rmtree(work_dir + "/.builder")
             print('Done.')
         except FileNotFoundError:
             print('Work directory already deleted or DNE. Doing nothing.')
-    elif args.target == 'baseos':
+    elif target == 'baseos':
         print('Deleting base OS...')
         try:
-            base_os_path = config['work_dir'] + '/.builder/baseos'
+            base_os_path = work_dir + '/.builder/baseos'
             shutil.rmtree(base_os_path)
         except FileNotFoundError:
             print('Base OS directory already deleted or DNE. Doing nothing.')
     else:
-        print('Trying to delete instance ' + args.target + '...')
+        print('Trying to delete instance ' + target + '...')
         try:
-            shutil.rmtree(config['work_dir'] + '/.builder/' + args.target)
+            shutil.rmtree(work_dir + '/.builder/' + target)
             print('Done.')
         except FileNotFoundError:
             print('Instance not found, doing nothing.')
-
-
-if __name__ == '__main__':
-    import argparse
-
-    parser = argparse.ArgumentParser(description='The builder component for AOINB.')
-    parser.add_argument('-c','--config_path', help='Where aoinb-builder configuration files are located.',
-                        type=str, default='/var/cache/aoinb/conf')
-
-    subparser = parser.add_subparsers()
-    parser_build = subparser.add_parser('build', help='Build a package.')
-    parser_build.add_argument('package', help='Where spec and autobuild/* are located.', type=str)
-    parser_build.add_argument('branch', help='Which branch to use. (stable, for example)', type=str)
-    parser_build.set_defaults(func=build)
-
-    parser_update_baseos = subparser.add_parser('update-baseos', help='Update base OS or instance.')
-    parser_update_baseos.set_defaults(func=update_baseos)
-
-    parser_load_baseos = subparser.add_parser('load-baseos',
-                                                help='Load base OS into build environment. '
-                                                     'Note: this operation will remove the old BuildKit installation.')
-    parser_load_baseos.set_defaults(func=load_baseos)
-
-    parser_cleanup = subparser.add_parser('cleanup', help='Something feels wrong? Start everything all over again.')
-    parser_cleanup.add_argument('target', help='To clean up specific instance, base os, or everything?')
-    parser_cleanup.set_defaults(func=cleanup)
-
-    args = parser.parse_args()
-
-    if not os.path.exists(os.path.abspath(args.config_path)):
-        raise IOError('Failed to read config: folder ' + os.path.abspath(args.config_path) + ' does not exists')
-
-    with open(args.config_path + '/config.toml', 'r') as f:
-        config = tomlkit.parse(f.read())
-
-    # Prepare workdir
-    if not os.path.exists(config['work_dir']):
-        print('Work directory does not exists, creating...')
-        os.makedirs(config['work_dir'])
-
-    if len(args.__dict__) <= 1:
-        print('Too few arguments.')
-        parser.print_help()
-        parser.exit()
-    else:
-        args.func(args)
-
