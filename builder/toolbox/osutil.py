@@ -21,7 +21,7 @@ def touch(filename):
     pathlib.Path(filename).touch()
 
 
-def hashtag(s, length=5):
+def hashtag(s, length=8):
     return hashlib.blake2b(s, digest_size=length).hexdigest()
 
 

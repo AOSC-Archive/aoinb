@@ -34,7 +34,9 @@ class BuildStatistics:
             "disk_avail INTEGER,"
             "speed REAL,"
             "maintainer TEXT,"
+            "cpu_model TEXT,"
             "note TEXT,"
+            "pubkey TEXT,"
             "valid_from INTEGER,"
             "updated INTEGER"
         ")")
@@ -45,7 +47,8 @@ class BuildStatistics:
             "work REAL,"
             "prate_slope REAL,"
             "prate_intercept REAL,"
-            "mem_max INTEGER,"
+            "mem_slope REAL,"
+            "mem_intercept REAL,"
             "disk_usage INTEGER,"
             "updated INTEGER,"
             "PRIMARY KEY (package, arch, version)"
@@ -95,20 +98,20 @@ class BuildStatistics:
         package_num = 0
         v_machines = {}
         w_packages = {}
-        p_packages = {}
         package_params = {}
         data = {}
         for pkg_key, group in itertools.groupby(cur, operator.itemgetter(0, 1, 2)):
-            max_mem = max_disk = 0
+            max_disk = 0
             last_machine = None
             packages[pkg_key] = package_num
             w_packages[pkg_key] = avg_work.get(pkg_key[:2], self.default_work)
             prates = []
+            max_mems = []
             for row in group:
                 (package, arch, version, machine_id,
                  cpu_time, real_time, mem, disk, cpu_count) = row
                 if mem:
-                    max_mem = max(max_mem, mem)
+                    max_mems.append((cpu_count, mem))
                 if disk:
                     max_disk = max(max_disk, disk)
                 prates.append((cpu_count, max(0, (cpu_time/real_time - 1))))
@@ -121,8 +124,10 @@ class BuildStatistics:
                         machine_num += 1
                     data[machine_idx, package_num] = cpu_time / 1e9
                 last_machine = machine_id
-            p_packages[pkg_key] = self._estimate_prate_params(prates)
-            package_params[pkg_key] = (max_mem, max_disk)
+            package_params[pkg_key] = (
+                self._linear_regression(prates) +
+                self._linear_regression(max_mems) + (max_disk,)
+            )
             package_num += 1
         if SCIPY_AVAILABLE:
             results = self._estimate_params(
@@ -133,33 +138,30 @@ class BuildStatistics:
             cur.execute("UPDATE aoinb_machines SET speed=? WHERE id=?",
                         (value, machine_id))
         for key, value in w_packages.items():
-            prate_k, prate_b = p_packages[key]
             upd = (int(time.time()),)
             cur.execute(
                 "INSERT OR REPLACE INTO aoinb_package_params "
                 "(package, arch, version, work, prate_slope, prate_intercept, "
-                " mem_max, disk_usage, updated) VALUES (?,?,?,?,?,?,?,?,?)",
-                key + (value, prate_k, prate_b) + package_params[key] + upd
+                " mem_slope, mem_intercept, disk_usage, updated) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
+                key + (value,) + package_params[key] + upd
             )
         self.db.commit()
 
-    def _estimate_prate_params(self, prates):
-        if not prates:
+    def _linear_regression(self, data):
+        if not data:
             return 0, 0
-        elif len(prates) == 1:
-            return 0, prates[0][1]
+        elif len(data) == 1:
+            return 0, data[0][1]
         if SCIPY_AVAILABLE:
-            arr = np.array(prates).T
+            arr = np.array(data).T
             if np.all(arr[1]) == 0:
                 return 0, 0
             result = scipy.stats.linregress(arr[0], arr[1])
             return result[:2]
         else:
-            total_num = total_prate = 0
-            for num, prate in prates:
-                total_num += num
-                total_prate += prate * num
-            return 0, total_prate / total_num
+            y_sum = sum(row[1] for row in data)
+            return 0, y_sum / len(data)
 
     def _estimate_params(self, data, machines, packages):
         ref_pkg_idx = packages.get(self.ref_package)
