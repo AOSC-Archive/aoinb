@@ -38,7 +38,7 @@ def build(work_dir, config_path, package_path, branch):
     c.workspace_mkdir('/buildroot')
     c.copy_dir_to_workspace(os.path.abspath(package_path), '/buildroot/bundle')
     # Copy toolbox
-    c.copy_dir_to_workspace(os.path.abspath('../toolbox'), '/buildroot/toolbox')
+    c.copy_dir_to_workspace(os.path.abspath('./toolbox'), '/buildroot/toolbox')
     # Run the build script
     c.workspace_up()
     c.workspace_run('/buildroot/toolbox/build.sh', [])

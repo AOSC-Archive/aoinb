@@ -39,7 +39,7 @@ echo PKGREL=$REL >> build/autobuild/defines
 cd build
 
 binfo "Initializing build."
-autobuild
+procmon.py autobuild
 
 if [[ $? -eq 0 ]]; then
 	binfo "Build successful. Copying result to result folder."
