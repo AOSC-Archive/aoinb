@@ -6,14 +6,23 @@ import time
 import sqlite3
 import operator
 import itertools
+import collections
 
 try:
     import numpy as np
+    import scipy.stats
     import scipy.sparse
     import scipy.sparse.linalg
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
+
+try:
+    import pulp
+    from pulp.solvers import GLPK
+    PULP_AVAILABLE = True
+except ImportError:
+    PULP_AVAILABLE = False
 
 
 class BuildStatistics:
@@ -192,3 +201,58 @@ class BuildStatistics:
         for name, idx in packages.items():
             w_packages[name] = result_params[machine_num+idx]
         return v_machines, w_packages
+
+    def schedule_work(self, machines, packages):
+        """
+        Use linear programming to schedule work among machines.
+        Returns ({machine: packages}, total_time)
+        """
+        if not machines or packages:
+            return {}, None
+        elif len(machines) == 1:
+            return {machines[0]: packages}, None
+        cur = self.db.cursor()
+        cur.execute("CREATE TEMPORARY TABLE t_machines (id TEXT PRIMARY KEY)")
+        for machine in machines:
+            cur.execute("INSERT OR IGNORE INTO t_machines VALUES (?)", (machine,))
+        cur.execute("CREATE TEMPORARY TABLE t_packages (name TEXT PRIMARY KEY)")
+        for package in packages:
+            cur.execute("INSERT OR IGNORE INTO t_packages VALUES (?)", (package,))
+        cur.execute("""
+            SELECT
+              m.id machine, p.package package,
+              p.work / (m.speed * (1 + (m.cpu_count-1)*(
+                p.prate_slope*m.cpu_count + p.prate_intercept))) compile_time
+            FROM aoinb_machines m
+            INNER JOIN aoinb_package_params p ON p.arch=m.arch
+            AND p.mem_slope*m.cpu_count + p.mem_intercept <= m.mem_avail
+            AND p.disk_usage <= m.disk_avail
+            WHERE m.id IN (SELECT id FROM t_machines)
+            AND p.package IN (SELECT name FROM t_packages)
+            ORDER BY m.id, p.package
+        """)
+        model = pulp.LpProblem("WorkerSched", pulp.LpMinimize)
+        assignment = {}
+        max_time = pulp.LpVariable("m", 0)
+        package_constr = collections.defaultdict(int)
+        for machine, group in itertools.groupby(cur, operator.itemgetter(0)):
+            machine_time = 0
+            for _, package, compile_time in group:
+                assign_var = pulp.LpVariable(
+                    "a_%s_%s" % (machine, package), 0, cat="Binary")
+                assignment[machine, package] = assign_var
+                machine_time += assign_var * compile_time
+                package_constr[package] += assign_var
+            model += max_time >= machine_time
+        for row in package_constr.values():
+            model += row == 1
+        # objective function
+        model += max_time
+        model.solve(GLPK(options=['--cuts']))
+
+        results = collections.defaultdict(list)
+        for key, var in assignment.items():
+            if round(var.varValue or 0):
+                machine, package = key
+                results[machine].append(package)
+        return results, pulp.value(max_time)
