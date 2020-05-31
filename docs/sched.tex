@@ -30,7 +30,7 @@
 
 对于机器 $j$，设其编译速度（编译单位工作量所需时间）为 $v_j$、CPU 个数为 $c_j$，且有内存限制 $M_j$、硬盘限制 $D_j$。
 
-用机器 $j$ 编译包 $i$ 时，可以观察到实际使用时间（real）$t_{ij}$、CPU使用时间（user+sys）$T_{ij}$，以及最大内存使用量 $m_i$ 和最大硬盘使用量 $d_i$。相同架构的机器编译所使用的内存和硬盘基本相同。
+用机器 $j$ 编译包 $i$ 时，可以观察到实际使用时间（real）$t_{ij}$、CPU使用时间（user+sys）$T_{ij}$，以及使用 $c_j$ 个 CPU 时最大内存使用量 $m_i(c_j)$ 和最大硬盘使用量 $d_i$。相同架构的机器编译所使用的内存和硬盘基本相同。
 
 \section{参数估计}
 
@@ -53,7 +53,10 @@ $$ \frac{w_i}{v_j} = T_{ij} \enspace \Rightarrow \enspace
 
 假设 $ P_i(c) $ 为一次函数 $ k_i c + b_i $，用最小二乘法线性回归可求出参数 $k_i$ 和 $b_i$。
 
+
 若存在 $x$ 使 $P_i(x) = 0$，则认为函数即为 $P_i(c) = 0$，表示编译过程为单线程。
+
+假设 $ m_i(c) $ 为一次函数 $ k_i c + b_i $，用最小二乘法线性回归可求出参数 $k_i$ 和 $b_i$。
 
 \section{工作分配}
 
@@ -65,7 +68,7 @@ $$ \frac{w_i}{v_j} = T_{ij} \enspace \Rightarrow \enspace
 \begin{subnumcases}{\label{eq_lp} \text{s.t.}}\displaystyle
 \sum^Y_{j=1} a_{ij} = 1, & i = 1, 2, ..., X \\
 z \ge \sum^X_{i=1} a_{ij} t_{ij}, & j = 1, 2, ..., Y \\
-a_{ij} m_i \le M_j \\
+a_{ij} m_i(c_j) \le M_j \\
 a_{ij} d_i \le D_j \\
 a_{ij} \in \{0, 1\}
 \end{subnumcases}
