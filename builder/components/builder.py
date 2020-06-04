@@ -17,7 +17,7 @@ def build(work_dir, config_path, package_path, branch):
     c = Container(branch, work_dir)
 
     # Prepare instance for first time use
-    if not os.path.exists(c.instance_overlay + '/etc/apt/source.list'):
+    if not os.path.exists(c.instance_overlay + '/etc/apt/sources.list'):
         print('source.list not found in instance. Copying from config path.')
         source_list_path = config_path + '/source_lists/' + branch + '.list'
         if not os.path.exists(source_list_path):
