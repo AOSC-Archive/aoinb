@@ -1,5 +1,5 @@
 * API between Scheduler and Builder
-A ping message will be sent by the Scheduler every 10 minutes, and the Builder must pong in 10s, or it is a timeout and Scheduler will declare this Builder offline.
+A ping message will be sent by the Scheduler every 10 minutes (will be adjustable), and the Builder must pong in 10s, or it is a timeout and Scheduler will declare this Builder offline.
 
 ** new_job
 S->B
@@ -13,11 +13,9 @@ S->B
 	"name": "test-name",
 	"description": "test-description",
 	"package": ["pkg1", "pkg2", "pkg3"],
-	"architecture": ["arch1", "arch2", "arch3"]
   }
 }
 #+END_SRC
-
 *** Response
 B->S
 #+BEGIN_SRC json
@@ -49,10 +47,9 @@ S->B
 #+BEGIN_SRC json
 {
   "type": "job_finished",
-  "result" "success",
+  "result": "success",
   "job": {
 	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
-	"status": "finished"
   }
 }
 #+END_SRC
@@ -64,9 +61,42 @@ S->B, used to let builder stop building the package (in case a fix just arrived)
   "type": "cancel_job",
   "result": null,
   "job": {
-	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8"
-	"status": "building",
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
   }
+}
+#+END_SRC
+
+*** Response
+B->S
+#+BEGIN_SRC json
+{
+  "type": "cancel_job",
+  "result": "success",
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+	"status": "cancelled"
+  }
+}
+#+END_SRC
+
+** get_build_bundle
+B->S, one request at a time.
+
+#+BEGIN_SRC json
+{
+  "type": "get_build_bundle",
+  "result": null,
+  "build_bundle": "pkg_name"
+}
+#+END_SRC
+
+*** Response
+S->B, send a giant blob, then:
+
+#+BEGIN_SRC json
+{
+  "type": "get_build_bundle",
+  "result": "success",
 }
 #+END_SRC
 
@@ -79,7 +109,6 @@ S->B, one request at a time (no need for several afterall, eh?)
   "result": null,
   "job": {
 	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
-	"status": "finished"
   }
 }
 #+END_SRC
@@ -95,15 +124,18 @@ First send a giant blob! Then:
   "result": "success",
   "job": {
 	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
-	"status": "finished"
   }
 }
 #+END_SRC
 
-
 * States of a Job
-#+BEGIN_SRC 
-new -> building -> finished
-                -> failed
-                -> cancelled (manual intervention)
+#+BEGIN_SRC dot :file job_state.svg :cmdline -Kdot -Tsvg
+digraph {
+	new -> fetching -> building -> finished
+	fetching -> cancelled
+	building -> failed
+}
 #+END_SRC
+
+#+RESULTS:
+[[job_state.svg]]
