@@ -1,6 +1,56 @@
 * API between Scheduler and Builder
 A ping message will be sent by the Scheduler every 10 minutes (will be adjustable), and the Builder must pong in 10s, or it is a timeout and Scheduler will declare this Builder offline.
 
+** hello
+B->S
+#+BEGIN_SRC json
+{
+  "type": "hello",
+  "result": null,
+  "builder": {
+	"name": "home",
+	"architecture": "amd64",
+	"speed": "100"
+  }
+}
+#+END_SRC
+
+*** Response
+S->B
+#+BEGIN_SRC json
+{
+  "type": "hello",
+  "result": "success"
+}
+#+END_SRC
+
+*** Error Response: Name already taken
+S->B
+#+BEGIN_SRC json
+{
+  "type": "hello",
+  "result": "failed",
+  "reason": "Name already taken"
+}
+#+END_SRC
+
+** bye
+B->S
+#+BEGIN_SRC json
+{
+  "type": "bye",
+  "result": null
+}
+#+END_SRC
+
+*** Response
+S->B
+#+BEGIN_SRC json
+{
+  "type": "bye",
+  "result": "success"
+}
+#+END_SRC
 ** new_job
 S->B
 #+BEGIN_SRC json
