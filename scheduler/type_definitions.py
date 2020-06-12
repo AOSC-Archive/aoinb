@@ -4,7 +4,13 @@ import uuid
 
 class Package:
     name: str
-    dependency: Optional[List[Package]]
+    dependency: Optional[List[str]]
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def str(self):
+        return self.name
 
 
 class Job:
@@ -28,3 +34,14 @@ class Job:
 
         self.build_packages = []
         self.postbuild = []
+
+    def get_json_map(self):
+        pkgs_str: List[str] = list(map(lambda p: p.str(), self.packages))
+        json_map: map = {
+                'uuid': str(self.uuid),
+                'status': 'new',
+                'name': self.name,
+                'description': self.description,
+                'packages': pkgs_str
+            }
+        return json_map
