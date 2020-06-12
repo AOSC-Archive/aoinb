@@ -59,7 +59,7 @@ S->B
   "result": null,
   "job": {
 	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
-	"stauts": "new",
+	"status": "new",
 	"name": "test-name",
 	"description": "test-description",
 	"package": ["pkg1", "pkg2", "pkg3"],
@@ -178,14 +178,31 @@ First send a giant blob! Then:
 }
 #+END_SRC
 
-* States of a Job
+
+* State machines, son!
+** States of a Job
 #+BEGIN_SRC dot :file job_state.svg :cmdline -Kdot -Tsvg
 digraph {
 	new -> fetching -> building -> finished
 	fetching -> cancelled
+	fetching -> failed
+	building -> cancelled
 	building -> failed
 }
 #+END_SRC
 
 #+RESULTS:
-[[job_state.svg]]
+[[file:job_state.svg]]
+** States of a builder
+Allow builder to fetch build bundle during fetching phase.
+
+Allow scheduler to fetch result during idle phase.
+#+BEGIN_SRC dot :file builder_state.svg :cmdline -Kdot -Tsvg
+digraph {
+	idle -> fetching -> building -> idle
+	fetching -> idle
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:builder_state.svg]]
