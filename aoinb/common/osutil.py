@@ -27,7 +27,7 @@ def hashtag(s, length=8):
 
 def machine_id():
     with open('/etc/machine-id', 'rb') as f:
-        idtag = hashtag(f.read())
+        idtag = hashtag(f.read(), 4)
     return '%s-%s' % (socket.gethostname(), idtag)
 
 
