@@ -1,0 +1,191 @@
+* API between Scheduler and Builder
+A ping message will be sent by the Scheduler every 10 minutes (will be adjustable), and the Builder must pong in 10s, or it is a timeout and Scheduler will declare this Builder offline.
+
+** hello
+B->S
+#+BEGIN_SRC json
+{
+  "type": "hello",
+  "result": null,
+  "builder": {
+	"name": "home",
+	"architecture": "amd64",
+	"speed": "100"
+  }
+}
+#+END_SRC
+
+*** Response
+S->B
+#+BEGIN_SRC json
+{
+  "type": "hello",
+  "result": "success"
+}
+#+END_SRC
+
+*** Error Response: Name already taken
+S->B
+#+BEGIN_SRC json
+{
+  "type": "hello",
+  "result": "failed",
+  "reason": "Name already taken"
+}
+#+END_SRC
+
+** bye
+B->S
+#+BEGIN_SRC json
+{
+  "type": "bye",
+  "result": null
+}
+#+END_SRC
+
+*** Response
+S->B
+#+BEGIN_SRC json
+{
+  "type": "bye",
+  "result": "success"
+}
+#+END_SRC
+** new_job
+S->B
+#+BEGIN_SRC json
+{
+  "type": "new_job",
+  "result": null,
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+	"stauts": "new",
+	"name": "test-name",
+	"description": "test-description",
+	"package": ["pkg1", "pkg2", "pkg3"],
+  }
+}
+#+END_SRC
+*** Response
+B->S
+#+BEGIN_SRC json
+{
+  "type": "new_job",
+  "result": "success", 
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+	"status": "building" 
+  }
+}
+#+END_SRC
+
+** job_finished
+B->S
+#+BEGIN_SRC json
+{
+  "type": "job_finished",
+  "result": null,
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+	"status": "finished/failed"
+  }
+}
+#+END_SRC
+
+*** Response
+S->B
+#+BEGIN_SRC json
+{
+  "type": "job_finished",
+  "result": "success",
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+  }
+}
+#+END_SRC
+
+** cancel_job
+S->B, used to let builder stop building the package (in case a fix just arrived).
+#+BEGIN_SRC json
+{
+  "type": "cancel_job",
+  "result": null,
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+  }
+}
+#+END_SRC
+
+*** Response
+B->S
+#+BEGIN_SRC json
+{
+  "type": "cancel_job",
+  "result": "success",
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+	"status": "cancelled"
+  }
+}
+#+END_SRC
+
+** get_build_bundle
+B->S, one request at a time.
+
+#+BEGIN_SRC json
+{
+  "type": "get_build_bundle",
+  "result": null,
+  "build_bundle": "pkg_name"
+}
+#+END_SRC
+
+*** Response
+S->B, send a giant blob, then:
+
+#+BEGIN_SRC json
+{
+  "type": "get_build_bundle",
+  "result": "success",
+}
+#+END_SRC
+
+** get_build_result
+S->B, one request at a time (no need for several afterall, eh?)
+
+#+BEGIN_SRC json
+{
+  "type": "get_build_result",
+  "result": null,
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+  }
+}
+#+END_SRC
+
+*** Response
+B->S
+
+First send a giant blob! Then:
+
+#+BEGIN_SRC json
+{
+  "type": "get_build_result",
+  "result": "success",
+  "job": {
+	"uuid": "bf501691-90d5-4d0f-b4f2-a1756baa57e8",
+  }
+}
+#+END_SRC
+
+* States of a Job
+#+BEGIN_SRC dot :file job_state.svg :cmdline -Kdot -Tsvg
+digraph {
+	new -> fetching -> building -> finished
+	fetching -> cancelled
+	building -> failed
+}
+#+END_SRC
+
+#+RESULTS:
+[[job_state.svg]]
