@@ -5,7 +5,7 @@ import uuid
 class Package:
     name: str
     version: str
-    dependency: Optional[List[Package]]
+    dependency: Optional[List[str]]
 
 
 class Job:
