@@ -45,9 +45,9 @@ class BuildStatistics:
             "maintainer TEXT,"
             "cpu_model TEXT,"
             "note TEXT,"
-            "pubkey TEXT,"
             "valid_from INTEGER,"
-            "updated INTEGER"
+            "updated INTEGER,"
+            "status INTEGER"
         ")")
         cur.execute("CREATE TABLE IF NOT EXISTS aoinb_package_params ("
             "package TEXT,"
