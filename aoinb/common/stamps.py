@@ -69,7 +69,10 @@ class Verifier:
         encoder = nacl.encoding.URLSafeBase64Encoder
         vkey = nacl.signing.VerifyKey(
             key.encode('utf-8'), nacl.encoding.HexEncoder)
-        signature = encoder.decode(signature.encode('utf-8'))
+        try:
+            signature = encoder.decode(signature.encode('utf-8'))
+        except ValueError:
+            return False
         hashed = nacl.hashlib.blake2b(data).digest()
         try:
             payload = vkey.verify(hashed, signature)

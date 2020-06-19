@@ -140,6 +140,38 @@ class BaseHandler:
             signer=stamps.Signer(key_config['key']['private']),
             verifier=stamps.Verifier(key_store)
         )
+        bottle.response.set_header('X-AOINB-Machine', config['host']['hostname'])
+
+    @classmethod
+    def sign_response(cls, response):
+        if isinstance(response, bottle.HTTPResponse):
+            use_obj = True
+            response_data = response.body
+            response_obj = response
+        else:
+            use_obj = False
+            response_data = response
+            response_obj = bottle.response
+        if isinstance(response_data, dict):
+            response_data = json.dumps(response).encode('utf-8')
+            response_obj.content_type = 'application/json'
+        elif isinstance(response_data, str):
+            response_data = response.encode('utf-8')
+        elif isinstance(response_data, bytes):
+            response_data = response
+
+        response_obj.set_header(
+            'X-AOINB-Machine', cls.global_config['host']['hostname'])
+        response_obj.set_header(
+            'X-AOINB-Signature',
+            cls.global_objs.signer.sign(response_data)
+        )
+        if hasattr(response_data, 'read'):
+            response_data.seek(0)
+        if use_obj:
+            return response
+        else:
+            return response_data
 
     @classmethod
     def callback_fn(cls, app, method):
@@ -150,9 +182,11 @@ class BaseHandler:
             handler.prepare(method)
             try:
                 response = callback(*args, **kwargs)
+            except bottle.HTTPError as ex:
+                response = ex
             finally:
                 handler.close(method)
-            return response
+            return cls.sign_response(response)
         return wrapper
 
     @classmethod
@@ -195,7 +229,8 @@ class ErrorHandler(BaseHandler):
 
     def default(self, error):
         bottle.response.content_type = 'application/json'
-        return json.dumps({'status': error.status, 'msg': error.body})
+        return self.sign_response(
+            json.dumps({'status': error.status, 'msg': error.body}))
 
 
 class AutoArgumentsMixin:

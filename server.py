@@ -6,7 +6,12 @@ Test server or WSGI entry point.
 """
 
 import sys
-from aoinb.scheduler.http_server import app
+from aoinb.common.utils import load_config
+from aoinb.scheduler.http_server import app, application, initialize
+
+config = load_config('config.ini')
+initialize(app, config)
+
 
 if __name__ == '__main__':
     host = '0.0.0.0'
